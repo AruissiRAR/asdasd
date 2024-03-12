@@ -1,0 +1,583 @@
+if (_G.Drawings) then
+    for _, drawing in pairs(_G.Drawings) do
+        drawing:Remove()
+    end
+end
+_G.Drawings = {}
+
+if (_G.Connections) then
+    for _, connection in pairs(_G.Connections) do
+        connection:Disconnect()
+    end
+end
+_G.Connections = {}
+
+-- Localization
+local tostring = tostring
+local Color3 = Color3
+local Vector3 = Vector3
+local Vector2 = Vector2
+local CFrame = CFrame
+local table_insert = table.insert
+local math_abs = math.abs
+local math_max = math.max
+local math_cos = math.cos
+local math_sin = math.sin
+local math_rad = math.rad
+local math_round = math.round
+
+-- Services
+local Workspace = game:GetService('Workspace')
+local Players = game:GetService('Players')
+local RunService = game:GetService('RunService')
+
+-- Other variables
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
+local ToolNames = {
+    ["Bruno's M4A1"] = true, ["Crossbow"] = true, ["Salvaged Shovel"] = true, ["Salvaged Pipe Rifle"] = true,
+    ["Steel Axe"] = true, ["Salvaged RPG"] = true, ["Small Medkit"] = true, ["Yellow Keycard"] = true,
+    ["Salvaged Pump Action"] = true, ["Pink Keycard"] = true, ["Salvaged SMG"] = true, ["Salvaged AK47"] = true,
+    ["Boulder"] = true, ["Care Package Signal"] = true, ["Salvaged AK74u"] = true, ["ez shovel"] = true,
+    ["Dynamite Stick"] = true, ["Military Barrett"] = true, ["Nail Gun"] = true, ["Iron Shard Hatchet"] = true,
+    ["Military M4A1"] = true, ["Wooden Spear"] = true, ["Dynamite Bundle"] = true, ["Stone Spear"] = true,
+    ["Salvaged P250"] = true, ["Iron Shard Pickaxe"] = true, ["Military PKM"] = true, ["Steel Shovel"] = true,
+    ["Timed Charge"] = true, ["Steel Pickaxe"] = true, ["Lighter"] = true, ["Blueprint"] = true,
+    ["Salvaged M14"] = true, ["Machete"] = true, ["Stone Hatchet"] = true, ["Bandage"] = true,
+    ["Saw Bat"] = true, ["Wooden Bow"] = true, ["Military Grenade"] = true, ["Health Pen"] = true,
+    ["Candy Cane"] = true, ["Hammer"] = true, ["Military AA12"] = true, ["Salvaged Python"] = true,
+    ["Purple Keycard"] = true, ["Bone Tool"] = true, ["Stone Pickaxe"] = true, ["Salvaged Skorpion"] = true,
+    ["Salvaged Break Action"] = true
+}
+
+local Functions
+do
+    Functions = {}
+    function Functions:GetBoundingBox(model)
+        local cframe, size = model:GetBoundingBox()
+        return cframe, size, cframe.Position
+    end
+
+    function Functions:WorldToViewport(position, offsetx, offsety)
+        offsetx = offsetx or 0
+        offsety = offsety or 0
+        local screenPos, onScreen = Camera:WorldToViewportPoint(position)
+        return Vector2.new(screenPos.X + offsetx, screenPos.Y + offsety), onScreen, screenPos.Z
+    end
+    
+    function Functions:GetPlayerTool(Character)
+        for _, v in ipairs(Character:GetChildren()) do
+            if ToolNames[v.Name] then 
+                return v.Name 
+            end
+        end
+        return "none"
+    end
+end
+
+local ScriptSettings = {
+    Enabled = true,
+    Max_Distance = 100,
+    Font_Family = 2,
+    Font_Size = 13,
+
+    Box = {
+        Enabled = true,
+        Outline = true,
+        Color = Color3.fromRGB(255, 255, 255),
+        Type = 'corner',
+    },
+    Chams = {
+        Enabled = true,
+        Transparency = 0.5,
+        Color = Color3.fromRGB(100, 100, 255),
+        VisibleCheck = false,
+    },
+    FilledBox = {
+        Enabled = true,
+        Color = Color3.fromRGB(0, 0, 0),
+        Transparency = 30,
+    },
+    Distance = {
+        Enabled = true,
+        Color = Color3.fromRGB(255, 255, 255),
+    },
+    Name = {
+        Enabled = true,
+        Color = Color3.fromRGB(255, 255, 255),
+    },
+    ViewAngle = {
+        Enabled = true,
+        Size = 5,
+        Outline = true,
+        Color = Color3.fromRGB(255, 255, 255),
+    },
+    HealthBar = {
+        Enabled = true,
+        ColorFull = Color3.fromRGB(100, 100, 255),
+        ColorEmpty = Color3.fromRGB(0, 0, 0),
+        Text = true,
+        TextColor = Color3.fromRGB(100, 100, 255),
+        Thickness = 5,
+    },
+    Tool = {
+        Enabled = true,
+        Color = Color3.fromRGB(255, 255, 255),
+    },
+    OffScreenArrows = {
+        Enabled = true,
+        Outline = true,
+        Radius = 500,
+        Size = 15,
+        Color = Color3.fromRGB(100, 100, 255),
+        HPBars = true,
+        Distance = true,
+        Tool = true,
+        Name = true,
+        Box = false,
+    },
+}
+
+local function AddPlayer(player)
+    if (player == LocalPlayer) then
+        return
+    end
+    -- creating ESP
+    local ESPDrawings = {
+        Text = {
+            Name = Drawing.new('Text'),
+            Distance = Drawing.new('Text'),
+            Tool = Drawing.new('Text'),
+        },
+        ViewAngle = {
+            Line = Drawing.new('Line'),
+            Outline = Drawing.new('Line'),
+        },
+        Box = {
+            LineTRV = Drawing.new('Line'),
+            LineTRH = Drawing.new('Line'),
+            LineTLV = Drawing.new('Line'),
+            LineTLH = Drawing.new('Line'),
+            LineBRV = Drawing.new('Line'),
+            LineBRH = Drawing.new('Line'),
+            LineBLV = Drawing.new('Line'),
+            LineBLH = Drawing.new('Line'),
+        },
+        Outline = {
+            LineTRV = Drawing.new('Line'),
+            LineTRH = Drawing.new('Line'),
+            LineTLV = Drawing.new('Line'),
+            LineTLH = Drawing.new('Line'),
+            LineBRV = Drawing.new('Line'),
+            LineBRH = Drawing.new('Line'),
+            LineBLV = Drawing.new('Line'),
+            LineBLH = Drawing.new('Line'),
+        },
+        BoxFilled = {
+            Box = Drawing.new('Quad'),
+        },
+        HealthBar = {
+            Base = Drawing.new('Square'),
+            Health = Drawing.new('Square'),
+            Text = Drawing.new('Text'),
+        },
+        OffScreenArrows = {
+            Arrow = Drawing.new('Triangle'),
+            Outline = Drawing.new('Triangle'),
+        },
+    }
+    local OSA = ESPDrawings.OffScreenArrows
+    local HB = ESPDrawings.HealthBar
+    local OB = ESPDrawings.Outline
+    local BO = ESPDrawings.Box
+    local FB = ESPDrawings.BoxFilled
+    local VA = ESPDrawings.ViewAngle
+    local TE = ESPDrawings.Text
+    -- Settings values
+    do
+        for index, value in pairs(ESPDrawings) do   
+            for _, drawing in pairs(value) do
+                drawing.ZIndex = 2
+                drawing.Visible = false
+                table_insert(_G.Drawings, drawing)
+                if (index == 'Text') then
+                    drawing.Center = true
+                    drawing.Size = ScriptSettings.Font_Size
+                    drawing.Font = ScriptSettings.Font_Family
+                    drawing.Outline = true
+                elseif (index == 'Outline') then
+                    drawing.ZIndex = -1
+                    drawing.Thickness = 3
+                    drawing.Color = Color3.new(0, 0, 0)
+                elseif (index == 'Box') then
+                    drawing.Thickness = 1
+                end
+            end
+        end
+        HB.Base.Color = Color3.fromRGB(28, 28, 28)
+        HB.Base.Filled = true
+        HB.Base.ZIndex = 1
+        HB.Health.Filled = true
+        HB.Text.Center = true
+        HB.Text.Size = ScriptSettings.Font_Size
+        HB.Text.Font = ScriptSettings.Font_Family
+        HB.Text.Outline = true
+        OSA.Arrow.Filled = true
+        OSA.Outline.Filled = false
+        OSA.Outline.Color = Color3.new(0, 0, 0)
+        ESPDrawings.BoxFilled.Box.Filled = true
+        ESPDrawings.Text.Name.Text = player.Name
+    end
+    -- Drawings functions
+    local function HideDrawings()
+        for _, value in pairs(ESPDrawings) do
+            for _, drawing in pairs(value) do
+                drawing.Visible = false
+            end
+        end
+    end
+    local function DestroyDrawings()
+        for _, value in pairs(ESPDrawings) do
+            for _, drawing in pairs(value) do
+                drawing:Remove()
+            end
+        end
+    end
+    local function ToggleTable(_table, toggle)
+        for _, drawing in pairs(ESPDrawings[_table]) do
+            drawing.Visible = toggle
+        end
+    end
+    local function SetValue(_table, index, value)
+        for _, drawing in pairs(ESPDrawings[_table]) do
+            drawing[index] = value
+        end
+    end
+    -- Math functions
+    local function RotateVector2(vector2, rotation)
+        local cos, sin = math_cos(rotation), math_sin(rotation)
+        return Vector2.new(cos * vector2.X - sin * vector2.Y, sin * vector2.X + cos * vector2.Y)
+    end
+    local function CalculateOffset(vector2, position, size)
+        local cframe = CFrame.new(position, Camera.CFrame.Position)
+        local x, y = -size.X / 2, size.Y / 2
+        local tRight = Functions:WorldToViewport((cframe * CFrame.new(x, y, 0)).Position)
+        local bRight = Functions:WorldToViewport((cframe * CFrame.new(x, -y, 0)).Position)
+        return {X = math_max(tRight.X - vector2.X, bRight.X - vector2.X), Y = math_max((vector2.Y - tRight.Y), (bRight.Y - vector2.Y))}
+    end
+    local function CalculatePoints(offset, vector2)
+        local bps = {
+            B = Vector2.new(vector2.X, vector2.Y + offset.Y),
+            T = Vector2.new(vector2.X, vector2.Y - offset.Y),
+            L = Vector2.new(vector2.X - offset.X, vector2.Y),
+            R = Vector2.new(vector2.X + offset.X, vector2.Y),
+        }
+        return {
+            BR = Vector2.new(bps.R.X, bps.B.Y),
+            TR = Vector2.new(bps.R.X, bps.T.Y),
+            TL = Vector2.new(bps.L.X, bps.T.Y),
+            BL = Vector2.new(bps.L.X, bps.B.Y),
+            B = bps.B,
+            T = bps.T,
+            L = bps.L,
+            R = bps.R,
+        }
+    end
+    -- ESP functions
+    local function BoxESP(settings, info)
+        if (settings.Enabled) then
+            local points = info.Points
+            if (settings.Type == 'full') then
+                ToggleTable('Box', false)
+                ToggleTable('Outline', false)
+                BO.LineTRV.Visible = true; BO.LineBRV.Visible = true; BO.LineTLV.Visible = true; BO.LineBLV.Visible = true;
+                BO.LineTRV.To = points.TR
+                BO.LineTRV.From = points.BR
+                BO.LineBRV.To = points.BR
+                BO.LineBRV.From = points.BL
+                BO.LineBLV.To = points.BL
+                BO.LineBLV.From = points.TL
+                BO.LineTLV.To = points.TL
+                BO.LineTLV.From = points.TR
+                if (settings.Outline) then
+                    OB.LineTRV.Visible = true; OB.LineBRV.Visible = true; OB.LineTLV.Visible = true; OB.LineBLV.Visible = true;
+                    for index, drawing in pairs(OB) do
+                        if (drawing.Visible) then
+                            drawing.To = BO[index].To
+                            drawing.From = BO[index].From
+                        end
+                    end
+                end
+            else
+                ToggleTable('Box', true)
+                BO.LineBRV.To = points.BR
+                BO.LineBRH.To = points.BR
+                BO.LineBRV.From = Vector2.new(points.BR.X, info.Vector2.Y + info.Offset.Y / 2)
+                BO.LineBRH.From = Vector2.new(info.Vector2.X + info.Offset.X / 2, points.BR.Y)
+                BO.LineTRV.To = points.TR
+                BO.LineTRH.To = points.TR
+                BO.LineTRV.From = Vector2.new(points.TR.X, info.Vector2.Y - info.Offset.Y / 2)
+                BO.LineTRH.From = Vector2.new(info.Vector2.X + info.Offset.X / 2, points.TR.Y)
+                BO.LineTLV.To = points.TL
+                BO.LineTLH.To = points.TL
+                BO.LineTLV.From = Vector2.new(points.TL.X, info.Vector2.Y - info.Offset.Y / 2)
+                BO.LineTLH.From = Vector2.new(info.Vector2.X - info.Offset.X / 2, points.TL.Y)
+                BO.LineBLV.To = points.BL
+                BO.LineBLH.To = points.BL
+                BO.LineBLV.From = Vector2.new(points.BL.X, info.Vector2.Y + info.Offset.Y / 2)
+                BO.LineBLH.From = Vector2.new(info.Vector2.X - info.Offset.X / 2, points.BL.Y)
+                if (settings.Outline) then
+                    ToggleTable('Outline', true)
+                    for index, drawing in pairs(OB) do
+                        drawing.To = BO[index].To
+                        drawing.From = BO[index].From
+                    end
+                end
+            end
+            SetValue('Box', 'Color', settings.Color)
+        else
+            ToggleTable('Box', false)
+            ToggleTable('Outline', false)
+        end
+    end
+
+    local function ChamsESP(settings, playerInfo)
+    if ScriptSettings.Chams.Enabled then
+        for _, part in ipairs(playerInfo.Character:GetChildren()) do
+            if part:IsA("BasePart") and part.Transparency ~= 1 then
+                local chams = part:FindFirstChild("Chams")
+                if not chams then
+                    chams = (part == playerInfo.Character.Head) and Instance.new("SphereHandleAdornment", part) or Instance.new("BoxHandleAdornment", part)
+                    chams.Name = "Chams"
+                    chams.ZIndex = 10
+                    chams.Adornee = part
+                    chams.Color3 = ScriptSettings.Chams.Color
+                    if part ~= playerInfo.Character.Head then
+                        chams.Size = part.Size + Vector3.new(0.02, 0.02, 0.02)
+                    else
+                        chams.Radius = 0.75
+                    end
+                end
+                chams.Transparency = ScriptSettings.Chams.Transparency
+                chams.AlwaysOnTop = not ScriptSettings.Chams.VisibleCheck
+                end
+            end
+        else
+            for _, part in ipairs(playerInfo.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local chams = part:FindFirstChild("Chams")
+                    if chams then
+                        chams:Destroy()
+                    end
+                end
+            end
+        end
+    end
+    
+    local function FilledBoxESP(settings, info)
+        local drawing = FB.Box
+        drawing.Visible = settings.Enabled
+        if (settings.Enabled) then
+            local points = info.Points
+            drawing.Visible = true
+            drawing.Color = settings.Color
+            drawing.Transparency = settings.Transparency / 100
+            drawing.PointA = points.BR
+            drawing.PointB = points.TR
+            drawing.PointC = points.TL
+            drawing.PointD = points.BL
+        end
+    end
+    local function ViewAngleESP(settings, playerInfo)
+        local line = VA.Line
+        local outline = VA.Outline
+        line.Visible = settings.Enabled
+        if settings.Enabled then
+            local headPosition = playerInfo.Character.Head.Position
+            local headCFrame = playerInfo.Character.Head.CFrame
+            local viewVector = (headCFrame * CFrame.new(0, 0, -ScriptSettings.ViewAngle.Size)).Position
+            local headViewport = Camera:WorldToViewportPoint(headPosition)
+            local viewViewport = Camera:WorldToViewportPoint(viewVector)
+            line.From = Vector2.new(headViewport.X, headViewport.Y)
+            line.To = Vector2.new(viewViewport.X, viewViewport.Y)
+            line.Color = settings.Color
+    
+            if settings.Outline then
+                outline.Visible = true
+                outline.From = line.From
+                outline.To = line.To
+                outline.ZIndex = 1
+                outline.Thickness = 3
+                outline.Color = Color3.new(0, 0, 0)
+            else
+                outline.Visible = false
+            end
+        end
+    end
+    local function DistanceESP(settings, info)
+        local drawing = TE.Distance
+        drawing.Visible = settings.Enabled
+        if settings.Enabled then
+            local offset = 1
+            if TE.Tool.Visible then
+                offset = offset + TE.Tool.TextBounds.Y
+            end
+            drawing.Visible = true
+            drawing.Color = settings.Color
+    
+            local playerHRP = player.Character:FindFirstChild("HumanoidRootPart")
+            local localPlayerHRP = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if playerHRP and localPlayerHRP then
+                local distance = tostring(math.floor((playerHRP.Position - localPlayerHRP.Position).Magnitude / 3.5714285714))
+                drawing.Text = '[' .. distance .. ']'
+                drawing.Position = info.Points.B + Vector2.new(0, offset)
+            end    
+        end
+    end
+    local function NameESP(settings, info)
+        local drawing = TE.Name
+        drawing.Visible = settings.Enabled
+        if (settings.Enabled) then
+            drawing.Visible = true
+            drawing.Color = settings.Color
+            drawing.Position = info.Points.T + Vector2.new(0, -15)
+        end
+    end
+    local function HealthBarESP(settings, info)
+        ToggleTable('HealthBar', settings.Enabled)
+        if (settings.Enabled) then
+            local base, bar, text = HB.Base, HB.Health, HB.Text
+
+            local bar_y = info.Offset.Y * 2
+            local hp = info.Humanoid.Health
+            local hp_perc = (hp / info.Humanoid.MaxHealth)
+
+            base.Size = Vector2.new(settings.Thickness, bar_y)
+            base.Position = info.Points.TL + Vector2.new(-settings.Thickness - 2, 0)
+
+            bar.Size = Vector2.new(settings.Thickness - 2, (bar_y - 2) * hp_perc)
+            bar.Position = base.Position + Vector2.new(1, (bar_y - 1) - bar.Size.Y)
+            bar.Color = settings.ColorEmpty:Lerp(settings.ColorFull, hp_perc)
+        
+            if (not settings.Text) then
+                text.Visible = false
+                return
+            end
+            text.Text = tostring(math_round(hp))
+            text.Color = ScriptSettings.HealthBar.TextColor
+            text.Position = bar.Position + Vector2.new(-text.TextBounds.X / 2 - 2, -text.TextBounds.Y / 2)
+        end
+    end
+    local function ToolESP(settings, info)
+        local drawing = TE.Tool
+        drawing.Visible = settings.Enabled
+        if (settings.Enabled) then
+            local tool = Functions:GetPlayerTool(player.Character)
+            drawing.Visible = true
+            drawing.Color = settings.Color
+            drawing.Text = ''..tostring(tool)..''
+            drawing.Position = info.Points.B + Vector2.new(0, 1)
+        end
+    end
+    local function OffScreenArrowESP(settings, info)
+        if (settings.Enabled) then
+            local arrow = OSA.Arrow
+            local outline = OSA.Outline
+
+            arrow.Visible = true
+            arrow.Color = settings.Color
+
+            local proj = Camera.CFrame:PointToObjectSpace(info.Position)
+            local angle = math.atan2(proj.Z, proj.X)
+            local direction = Vector2.new(math_cos(angle), math_sin(angle))
+            local pos = (direction * settings.Radius / 2) + Camera.ViewportSize / 2
+            arrow.PointA = pos
+            arrow.PointB = pos - RotateVector2(direction, math_rad(35)) * settings.Size
+            arrow.PointC = pos - RotateVector2(direction, -math_rad(35)) * settings.Size
+
+            if (settings.Outline) then
+                outline.Visible = true
+                outline.PointA = arrow.PointA
+                outline.PointB = arrow.PointB
+                outline.PointC = arrow.PointC
+            else
+                outline.Visible = false
+            end
+            local arrow_info = {
+                Offset = Vector2.new(settings.Size / 2, settings.Size / 2),
+                Vector2 = pos - RotateVector2(direction, math_rad(0)) * (settings.Size / 2),
+                Position = info.Position,
+                Humanoid = info.Humanoid,
+                Character = info.Character,
+            }
+            arrow_info.Points = CalculatePoints(arrow_info.Offset, arrow_info.Vector2)
+            if (settings.HPBars) then
+                HealthBarESP(ScriptSettings.HealthBar, arrow_info)
+            end
+            if (settings.Name) then
+                NameESP(ScriptSettings.Name, arrow_info)
+            end
+            if (settings.Box) then
+                BoxESP(ScriptSettings.Box, arrow_info)
+            end
+            if (settings.Tool) then
+                ToolESP(ScriptSettings.Tool, arrow_info)
+            end
+            if (settings.Distance) then
+                DistanceESP(ScriptSettings.Distance, arrow_info)
+            end
+            if (settings.FilledBox) then
+                FilledBoxESP(ScriptSettings.FilledBox, arrow_info)
+            end
+        end
+    end
+    -- Loop
+    local connection; connection = RunService.RenderStepped:Connect(function()
+        if (not player) then
+            DestroyDrawings()
+            connection:Disconnect()
+            return
+        end
+        local info = {
+            Character = player.Character,
+        }
+        if (not (ScriptSettings.Enabled and info.Character)) then
+            HideDrawings()
+            return
+        end
+        info.Humanoid = info.Character:FindFirstChild('Humanoid')
+        info.RootPart = info.Character:FindFirstChild('HumanoidRootPart')
+        if (not (info.Humanoid and info.Humanoid.Health > 0 and info.RootPart)) then
+            HideDrawings()
+            return
+        end
+        info.Orientation, info.Size, info.Position = Functions:GetBoundingBox(info.Character)
+        info.Vector2, info.OnScreen = Functions:WorldToViewport(info.Position)
+        if (not info.OnScreen) then
+            HideDrawings()
+            OffScreenArrowESP(ScriptSettings.OffScreenArrows, info)
+            return
+        end
+        info.Offset = CalculateOffset(info.Vector2, info.Position, info.Size)
+        info.Points = CalculatePoints(info.Offset, info.Vector2)
+        HealthBarESP(ScriptSettings.HealthBar, info)
+        DistanceESP(ScriptSettings.Distance, info)
+        NameESP(ScriptSettings.Name, info)
+        ViewAngleESP(ScriptSettings.ViewAngle, info)
+        BoxESP(ScriptSettings.Box, info)
+        ToolESP(ScriptSettings.Tool, info)
+        FilledBoxESP(ScriptSettings.FilledBox, info)
+        ChamsESP(ScriptSettings.Chams, info)
+        ToggleTable('OffScreenArrows', false)
+    end)
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    AddPlayer(player)
+end
+local childAddedConnection = Players.ChildAdded:Connect(function(player)
+    AddPlayer(player)
+end)
+table.insert(_G.Connections, childAddedConnection)
